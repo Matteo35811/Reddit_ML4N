@@ -10,6 +10,7 @@ __pycache__/
 
 #Numpy saved files
 *.npy
+*.npz
 
 # Virtual environments
 .venv/
