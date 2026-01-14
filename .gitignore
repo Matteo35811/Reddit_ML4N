@@ -9,15 +9,22 @@ __pycache__/
 *.pkl
 *.npy
 *.npz
+.__pycache__
+__pycache__/
+*.pyc
 
 # --------------------------
 # Virtual environments
 # --------------------------
-.venv/
-venv/
+.venv*/
+venv*/
 env/
 mlenv/
 ENV/
+venv311/
+.venv/
+venv/
+venv311/
 
 # --------------------------
 # Jupyter
