@@ -4,6 +4,9 @@ import pandas as pd
 import os
 import spacy
 from tqdm import tqdm
+from collections import Counter
+from langdetect import detect, DetectorFactory
+DetectorFactory.seed = 0
 nlp = spacy.load("en_core_web_sm")
 
 def plot_gender_distribution_top_subreddits(df, target, gender_col="gender", top_n=10):
@@ -99,3 +102,34 @@ def get_top_words(body, n=20):
     all_body = ' '.join(body.fillna(''))
     words = all_body.split()
     return pd.DataFrame(Counter(words).most_common(n), columns=['word', 'count'])
+
+def detect_language(text):
+    try:
+        text = str(text).strip()
+        if not text:
+            return "unknown"
+        return detect(text)
+    except:
+        return "unknown"
+    
+def add_language_column(df, text_column='body_clean'):
+    """
+    Adds a 'language' column to the DataFrame by detecting the language
+    of each entry in the specified text column.
+    """
+    df = df.copy()
+    df['language'] = df[text_column].apply(detect_language)
+    return df
+
+def get_top_languages(df, column='language', top_n=4):
+    counts = df[column].value_counts()
+    top = counts.head(top_n)
+    other = counts.iloc[top_n:].sum()
+
+    result = top.to_frame().reset_index()
+    result.columns = ['language', 'count']
+
+    if other > 0:
+        result.loc[len(result)] = ['other', other]
+
+    return result
