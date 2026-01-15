@@ -6,6 +6,75 @@ import spacy
 from tqdm import tqdm
 nlp = spacy.load("en_core_web_sm")
 
+def plot_gender_distribution_top_subreddits(df, target, gender_col="gender", top_n=10):
+    # Merge df with target on author
+    merged = df.merge(target[['author', gender_col]], on='author', how='left')
+    top_subreddits = (
+        merged['subreddit']
+        .value_counts()
+        .head(top_n)
+        .index
+    )
+    filtered = merged[merged['subreddit'].isin(top_subreddits)]
+    filtered["gender_label"] = filtered[gender_col].map({0: "male", 1: "female"})
+    plt.figure(figsize=(12, 7))
+    sns.countplot(
+        data=filtered,
+        y="subreddit",
+        hue="gender_label",
+        palette={"male": "#1f77b4", "female": "#ff69b4"}
+    )
+
+    plt.title(f"Gender distribution in the top {top_n} subreddits")
+    plt.xlabel("Count")
+    plt.ylabel("Subreddit")
+    plt.legend(title="Gender")
+    plt.tight_layout()
+    plt.show()
+
+def plot_user_subreddit_heatmap(df, top_users=20, top_subreddits=30):
+    top_user_list = (
+        df['author']
+        .value_counts()
+        .head(top_users)
+        .index
+    )
+    top_sub_list = (
+        df['subreddit']
+        .value_counts()
+        .head(top_subreddits)
+        .index
+    )
+    # filter dataset
+    filtered = df[
+        df['author'].isin(top_user_list) &
+        df['subreddit'].isin(top_sub_list)
+    ]
+    # table: rows = users, columns = subreddits
+    pivot = (
+        filtered
+        .pivot_table(
+            index='author',
+            columns='subreddit',
+            values='body',
+            aggfunc='count',
+            fill_value=0
+        )
+    )
+
+    plt.figure(figsize=(18, 10))
+    sns.heatmap(
+        pivot,
+        cmap="viridis",
+        linewidths=0.4,
+        linecolor="gray"
+    )
+    plt.title("Activity Heatmap: Top Users × Top Subreddits")
+    plt.xlabel("Subreddit")
+    plt.ylabel("User")
+    plt.tight_layout()
+    plt.show()
+
 def process_text_full(text_series, batch_size=2000):
     clean_texts = []
 
@@ -26,6 +95,7 @@ def process_text_full(text_series, batch_size=2000):
     return clean_texts
 
 def get_top_words(body, n=20):
+
     all_body = ' '.join(body.fillna(''))
     words = all_body.split()
     return pd.DataFrame(Counter(words).most_common(n), columns=['word', 'count'])
