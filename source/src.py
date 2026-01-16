@@ -6,6 +6,8 @@ import spacy
 from tqdm import tqdm
 from collections import Counter
 from langdetect import detect, DetectorFactory
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.model_selection import train_test_split
 DetectorFactory.seed = 0
 nlp = spacy.load("en_core_web_sm")
 
@@ -121,7 +123,7 @@ def add_language_column(df, text_column='body_clean'):
     df['language'] = df[text_column].apply(detect_language)
     return df
 
-def get_top_languages(df, column='language', top_n=4):
+def get_top_languages(df, column='language', top_n=4):   
     counts = df[column].value_counts()
     top = counts.head(top_n)
     other = counts.iloc[top_n:].sum()
@@ -133,3 +135,41 @@ def get_top_languages(df, column='language', top_n=4):
         result.loc[len(result)] = ['other', other]
 
     return result
+
+def stratified_split(X, Y):
+    #split 80-10-10
+    X_temp, X_test, y_temp, y_test = train_test_split(X, Y, stratify=Y, train_size=0.90,random_state=16)
+    X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, stratify=y_temp, train_size=8/9, random_state=16)
+    return X_train, X_val, X_test, y_train, y_val, y_test
+
+def build_tfidf_sec1(corpus, ngram_range=(1,1)):
+    vectorizer = TfidfVectorizer(
+        ngram_range=ngram_range,
+        stop_words="english"
+    )
+    X = vectorizer.fit_transform(corpus)
+    return X, vectorizer.get_feature_names_out(), vectorizer
+
+def build_tfidf(x_train, x_val, x_test):
+    vectorizer = TfidfVectorizer(
+        ngram_range=(1,1),
+        stop_words="english"
+    )
+    X_train = vectorizer.fit_transform(x_train)
+    X_val = vectorizer.transform(x_val)
+    X_test = vectorizer.transform(x_test)
+
+def build_bow(x_train, x_val, x_test):
+    bow = CountVectorizer(
+        stop_words="english",
+        ngram_range=(1,1)
+    )
+    X_train =bow.fit_transform(x_train)
+    X_val =bow.transform(x_val)
+    X_test =bow.transform(x_test)
+    return X_train, X_val, X_test
+
+
+# def quantile_reduction
+
+# def truncated_svd
