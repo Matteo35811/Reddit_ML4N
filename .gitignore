@@ -12,12 +12,14 @@ __pycache__/
 
 # --------------------------
 # Virtual environments
-# --------------------------
-.venv/
+# Virtual environments
+.venv*/
 venv/
+venv311/
 env/
-mlenv/
 ENV/
+mlenv/
+
 
 # --------------------------
 # Jupyter
