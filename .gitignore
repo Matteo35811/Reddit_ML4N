@@ -14,10 +14,11 @@ __pycache__/
 *.pkl
 
 # Virtual environments
-.venv/
+.venv*/
 venv/
 mlenv/ 
 env/
+venv311/
 
 # Jupyter
 .ipynb_checkpoints/
