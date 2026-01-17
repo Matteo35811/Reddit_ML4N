@@ -2,11 +2,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import os
+import numpy as np
 import spacy
 from tqdm import tqdm
 from collections import Counter
-from langdetect import detect, DetectorFactory
+from langdetect import detect, DetectorFactory, LangDetectException
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.decomposition import TruncatedSVD
 from sklearn.model_selection import train_test_split
 DetectorFactory.seed = 0
 nlp = spacy.load("en_core_web_sm")
@@ -115,10 +117,6 @@ def detect_language(text):
         return "unknown"
     
 def add_language_column(df, text_column='body_clean'):
-    """
-    Adds a 'language' column to the DataFrame by detecting the language
-    of each entry in the specified text column.
-    """
     df = df.copy()
     df['language'] = df[text_column].apply(detect_language)
     return df
@@ -169,7 +167,80 @@ def build_bow(x_train, x_val, x_test):
     X_test =bow.transform(x_test)
     return X_train, X_val, X_test
 
+def quantile_reduction(X, low_q=0.01, high_q=0.99):
+    col_sums = np.array(X.sum(axis=0)).ravel()
+    low_thr = np.quantile(col_sums, low_q)
+    high_thr = np.quantile(col_sums, high_q)
+    mask = (col_sums <= low_thr) | (col_sums >= high_thr)
+    X_filtered = X[:, mask]
 
-# def quantile_reduction
+    return X_filtered, mask
 
-# def truncated_svd
+def truncated_svd(X_train, X_val, X_test, n_components=1000, random_state=16):
+    svd_tfidf = TruncatedSVD(n_components=n_components, random_state=16)
+    X_svd_train = svd_tfidf.fit_transform(X_train)  # FIT solo su train! 
+    X_svd_val = svd_tfidf.transform(X_val)
+    X_svd_test = svd_tfidf. transform(X_test)
+    return X_svd_train, X_svd_val, X_svd_test
+
+def filter_english_comments(df, plot_top_n=15):
+    lang_counts = df['lang'].value_counts()
+
+    plt.figure(figsize=(12, 6))
+    sns.barplot(
+        x=lang_counts.index[:plot_top_n],
+        y=lang_counts.values[:plot_top_n],
+        palette="viridis"
+    )
+    plt.title(f"Top {plot_top_n} Languages", fontsize=15)
+    plt.ylabel("Number of comments (Log Scale)", fontsize=12)
+    plt.xlabel("Language", fontsize=12)
+    plt.yscale('log')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.show()
+    print(f"\nBefore Filtering: {len(df)}")
+    df_filtered = df[df['lang'].isin(['en', 'short_text'])].copy()
+    df_filtered = df_filtered.drop(columns=['lang'])
+    df_filtered.reset_index(drop=True, inplace=True)
+    n_en = (df['lang'] == 'en').sum()
+    n_short = (df['lang'] == 'short_text').sum()
+    n_failed = (df['lang'] == 'detection_failed').sum()
+    n_other = len(df) - n_en - n_short - n_failed
+    n_removed = len(df) - len(df_filtered)
+
+    print(f"English comments kept: {n_en}")
+    print(f"Short text kept (assumed English): {n_short}")
+    print(f"Detection failed removed: {n_failed}")
+    print(f"Other languages removed: {n_other}")
+    print(f"After filtering (only English): {len(df_filtered)} comments")
+    print(f"Total removed: {n_removed} ({n_removed/len(df)*100:.1f}%)")
+
+    return df_filtered
+
+def detect_languages(df, text_column="body"):
+    def detect_lang_safe(text: str) -> str:
+        try:
+            if not isinstance(text, str) or len(text.strip()) < 3:
+                return "short_text"
+            return detect(text)
+        except LangDetectException:
+            return "short_text"
+
+    print("Detecting languages...")
+    tqdm.pandas(desc="Detecting language")
+
+    df["lang"] = (
+        df[text_column]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .progress_apply(detect_lang_safe)
+    )
+
+    print("\nLanguage distribution:")
+    print(df["lang"].value_counts(dropna=False))
+
+    pct_en = (df["lang"] == "en").mean() * 100
+    print(f"\nPercentage English: {pct_en:.2f}%")
+
+    return df
