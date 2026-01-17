@@ -9,16 +9,24 @@ __pycache__/
 *.pkl
 *.npy
 *.npz
+.__pycache__
+__pycache__/
+*.pyc
 
 # --------------------------
 # Virtual environments
-# Virtual environments
+
+# --------------------------
 .venv*/
-venv/
-venv311/
+venv*/
+
 env/
 ENV/
-mlenv/
+
+venv311/
+.venv/
+venv/
+venv311/
 
 
 # --------------------------
